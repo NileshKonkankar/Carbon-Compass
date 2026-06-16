@@ -18,20 +18,21 @@ COPY . .
 RUN npm run build
 
 # ==========================================
-# Stage 2: Serve the Static Assets with Caddy
+# Stage 2: Serve the Static Assets with Node.js
 # ==========================================
-FROM caddy:2-alpine
+FROM node:20-alpine
 
-# Set default PORT environment variable and writeable XDG config/data directories
+WORKDIR /app
+
+# Copy built static assets from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Copy the lightweight static server script
+COPY --from=builder /app/server.js ./server.js
+
+# Declare default PORT environment variable and expose port
 ENV PORT=8080
-ENV XDG_CONFIG_HOME=/tmp/caddy-config
-ENV XDG_DATA_HOME=/tmp/caddy-data
-
-# Copy built assets from builder stage
-COPY --from=builder /app/dist /usr/share/caddy
-
-# Copy custom Caddyfile configuration
-COPY Caddyfile /etc/caddy/Caddyfile
-
-# Expose port 8080 for documentation
 EXPOSE 8080
+
+# Run the unprivileged Node server
+CMD ["node", "server.js"]
