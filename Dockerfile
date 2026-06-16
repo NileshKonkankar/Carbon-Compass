@@ -22,6 +22,10 @@ RUN npm run build
 # ==========================================
 FROM caddy:2-alpine
 
+# Set writeable directories for Caddy config/data inside serverless read-only runtimes
+ENV XDG_CONFIG_HOME=/tmp/caddy-config
+ENV XDG_DATA_HOME=/tmp/caddy-data
+
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/caddy
 
