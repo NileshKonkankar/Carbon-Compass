@@ -25,11 +25,17 @@ FROM nginx:stable-alpine
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy custom Nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy custom Nginx configuration template for envsubst template substitution
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
-# Expose port 80 as default fallback
+# Restrict envsubst to ONLY substitute the PORT environment variable, protecting other Nginx variables (like $uri)
+ENV NGINX_ENVSUBST_FILTER=PORT
+
+# Set default fallback port to 80
+ENV PORT=80
+
+# Expose port 80 for documentation
 EXPOSE 80
 
-# Start Nginx in the foreground, substituting PORT_PLACEHOLDER dynamically with the $PORT env variable at runtime
-CMD ["/bin/sh", "-c", "sed -i \"s/PORT_PLACEHOLDER/${PORT:-80}/g\" /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
+# Start Nginx in the foreground
+CMD ["nginx", "-g", "daemon off;"]
