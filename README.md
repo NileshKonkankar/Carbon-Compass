@@ -1,3 +1,5 @@
+[![Carbon Compass CI](https://github.com/NileshKonkankar/Carbon-Compass/actions/workflows/ci.yml/badge.svg)](https://github.com/NileshKonkankar/Carbon-Compass/actions/workflows/ci.yml)
+
 # 🧭 Carbon Compass
 
 Carbon Compass is a premium, highly interactive, and visually stunning web application designed to help users track, understand, and reduce their daily carbon footprint. Built with React, TypeScript, and Vite, it features a modern 3D glassmorphic dark interface, dynamic SVG visualizations, personalized nudges, and gamified daily challenges.
