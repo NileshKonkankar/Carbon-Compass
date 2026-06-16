@@ -1,0 +1,40 @@
+# Dependencies and builds
+node_modules
+dist
+build
+.svelte-kit
+.next
+out
+
+# Docker configurations
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Git
+.git
+.github
+.gitignore
+
+# Environment files and logs
+.env
+.env.*
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
