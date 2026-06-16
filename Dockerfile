@@ -18,24 +18,21 @@ COPY . .
 RUN npm run build
 
 # ==========================================
-# Stage 2: Serve the Static Assets with Nginx (Secure, non-root version)
+# Stage 2: Serve the Static Assets with Nginx (Fail-Safe Port Binding)
 # ==========================================
-FROM nginxinc/nginx-unprivileged:stable-alpine
+FROM nginx:stable-alpine
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy custom Nginx configuration template for envsubst template substitution
-COPY nginx.conf /etc/nginx/templates/default.conf.template
+# Copy our full custom Nginx configuration as a template
+COPY nginx.conf /etc/nginx/nginx.conf.template
 
-# Restrict envsubst to ONLY substitute the PORT environment variable, protecting other Nginx variables (like $uri)
-ENV NGINX_ENVSUBST_FILTER=PORT
-
-# Set default fallback port to 8080 (privileged ports < 1024 cannot be bound by non-root users)
+# Set default fallback port to 8080
 ENV PORT=8080
 
 # Expose port 8080 for documentation
 EXPOSE 8080
 
-# Start Nginx in the foreground
-CMD ["nginx", "-g", "daemon off;"]
+# Replace PORT_PLACEHOLDER with $PORT and run Nginx using writeable configuration in /tmp to ensure compatibility with read-only & non-root hosts
+CMD ["/bin/sh", "-c", "sed \"s/PORT_PLACEHOLDER/${PORT:-8080}/g\" /etc/nginx/nginx.conf.template > /tmp/nginx.conf && exec nginx -c /tmp/nginx.conf"]
