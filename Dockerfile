@@ -22,7 +22,8 @@ RUN npm run build
 # ==========================================
 FROM caddy:2-alpine
 
-# Set writeable directories for Caddy config/data inside serverless read-only runtimes
+# Set default PORT environment variable and writeable XDG config/data directories
+ENV PORT=8080
 ENV XDG_CONFIG_HOME=/tmp/caddy-config
 ENV XDG_DATA_HOME=/tmp/caddy-data
 
