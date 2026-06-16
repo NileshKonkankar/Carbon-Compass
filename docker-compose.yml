@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: carbon_compass_app
+    environment:
+      - PORT=8080
     ports:
-      - "8080:80"
+      - "8080:8080"
     restart: unless-stopped
