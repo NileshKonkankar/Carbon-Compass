@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ACTIVITY_OPTIONS, calculateEmission } from '../utils/carbonEngine';
 import type { ActivityOption } from '../utils/carbonEngine';
 import { Icons } from './Icons';
@@ -15,6 +15,27 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
     ACTIVITY_OPTIONS.find(opt => opt.category === 'transport') || null
   );
   const [inputValue, setInputValue] = useState<number>(15);
+
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Focus management: focus close button when modal opens
+  useEffect(() => {
+    if (isOpen && closeButtonRef.current) {
+      closeButtonRef.current.focus();
+    }
+  }, [isOpen]);
+
+  // Escape key keyboard listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -73,6 +94,7 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
             <p style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.875rem', marginTop: '4px' }}>Track your daily carbon footprint contributors</p>
           </div>
           <button 
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             aria-label="Close activity logger"
@@ -112,9 +134,11 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
             {(['transport', 'diet', 'energy', 'waste'] as const).map(tab => (
               <button
                 key={tab}
+                id={`logger-tab-${tab}`}
                 type="button"
                 role="tab"
                 aria-selected={activeTab === tab}
+                aria-controls={`logger-panel-${tab}`}
                 onClick={() => handleTabChange(tab)}
                 style={{
                   padding: '8px 0',
@@ -132,10 +156,11 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
             ))}
           </div>
 
-          {/* Activity Grid */}
+          {/* Activity Grid Tabpanel */}
           <div 
-            role="group" 
-            aria-label="Select an activity option"
+            id={`logger-panel-${activeTab}`}
+            role="tabpanel" 
+            aria-labelledby={`logger-tab-${activeTab}`}
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr',

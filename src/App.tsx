@@ -15,6 +15,7 @@ function App() {
     toggleChallenge,
     streak,
     getWeeklyHistory,
+    updateBudget,
     resetData
   } = useCarbonData();
 
@@ -126,6 +127,7 @@ function App() {
 
             {/* Reset mock data */}
             <button 
+              type="button"
               onClick={() => {
                 if(confirm("Reset all logs and reload demo data?")) {
                   resetData();
@@ -260,10 +262,37 @@ function App() {
               </div>
 
               <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>
-                  <span>Daily Limit:</span>
-                  <span style={{ fontWeight: 600, color: 'white' }}>{budget.toFixed(1)} kg</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label htmlFor="budget-input" style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>Daily Limit Target:</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      id="budget-input"
+                      type="number"
+                      value={budget}
+                      min="1"
+                      max="100"
+                      onChange={(e) => updateBudget(Math.max(1, Number(e.target.value)))}
+                      style={{
+                        width: '64px',
+                        padding: '4px 8px',
+                        fontSize: '0.85rem',
+                        textAlign: 'right'
+                      }}
+                    />
+                    <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>kg</span>
+                  </div>
                 </div>
+                {/* Visual nudges for budget targets */}
+                {budget > 25 && (
+                  <p style={{ fontSize: '0.72rem', color: '#f59e0b', margin: '4px 0 0', textAlign: 'left', lineHeight: '1.2' }}>
+                    ⚠️ Setting a limit over 25 kg exceeds typical sustainability recommendations. Try challenging yourself with a lower target!
+                  </p>
+                )}
+                {budget < 10 && (
+                  <p style={{ fontSize: '0.72rem', color: 'hsl(var(--primary))', margin: '4px 0 0', textAlign: 'left', lineHeight: '1.2' }}>
+                    🌿 Excellent! A sub-10 kg limit represents an ambitious, highly sustainable target.
+                  </p>
+                )}
               </div>
 
               <button 
@@ -309,12 +338,12 @@ function App() {
                   <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>Click "Log New Activity" above to begin tracking.</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '380px' }}>
+                <ul style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '380px', listStyle: 'none', padding: 0, margin: 0 }}>
                   {currentData.entries.map(entry => {
                     const isSaving = entry.co2e < 0;
                     
                     return (
-                      <div 
+                      <li 
                         key={entry.id}
                         style={{
                           display: 'flex',
@@ -361,10 +390,10 @@ function App() {
                             <Icons name="Trash2" size={14} />
                           </button>
                         </div>
-                      </div>
+                      </li>
                     );
                   })}
-                </div>
+                </ul>
               )}
             </div>
 
@@ -480,9 +509,9 @@ function App() {
                     </p>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <ul style={{ display: 'flex', flexDirection: 'column', gap: '14px', listStyle: 'none', padding: 0, margin: 0 }}>
                     {currentData.challenges.map(challenge => (
-                      <div
+                      <li
                         key={challenge.id}
                         style={{
                           display: 'flex',
@@ -554,9 +583,9 @@ function App() {
                           )}
                         </div>
 
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
               </div>
             )}

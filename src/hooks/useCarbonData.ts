@@ -325,6 +325,20 @@ export const useCarbonData = () => {
     saveRecords(updatedRecords);
   };
 
+  // Update daily budget
+  const updateBudget = (newBudget: number) => {
+    const current = dailyRecords[selectedDate] || generateDefaultDailyData(selectedDate);
+    const updatedData: DailyData = {
+      ...current,
+      budgetCO2: newBudget
+    };
+    const updatedRecords = {
+      ...dailyRecords,
+      [selectedDate]: updatedData
+    };
+    saveRecords(updatedRecords);
+  };
+
   // Helper: get past 7 days carbon data for chart
   const getWeeklyHistory = () => {
     const history = [];
@@ -370,6 +384,7 @@ export const useCarbonData = () => {
     toggleChallenge,
     streak,
     getWeeklyHistory,
+    updateBudget,
     resetData: initializeDefaultData
   };
 };
