@@ -18,9 +18,9 @@ COPY . .
 RUN npm run build
 
 # ==========================================
-# Stage 2: Serve the Static Assets with Nginx
+# Stage 2: Serve the Static Assets with Nginx (Secure, non-root version)
 # ==========================================
-FROM nginx:stable-alpine
+FROM nginxinc/nginx-unprivileged:stable-alpine
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -31,11 +31,11 @@ COPY nginx.conf /etc/nginx/templates/default.conf.template
 # Restrict envsubst to ONLY substitute the PORT environment variable, protecting other Nginx variables (like $uri)
 ENV NGINX_ENVSUBST_FILTER=PORT
 
-# Set default fallback port to 80
-ENV PORT=80
+# Set default fallback port to 8080 (privileged ports < 1024 cannot be bound by non-root users)
+ENV PORT=8080
 
-# Expose port 80 for documentation
-EXPOSE 80
+# Expose port 8080 for documentation
+EXPOSE 8080
 
 # Start Nginx in the foreground
 CMD ["nginx", "-g", "daemon off;"]
