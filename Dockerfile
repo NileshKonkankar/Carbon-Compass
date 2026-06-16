@@ -18,21 +18,15 @@ COPY . .
 RUN npm run build
 
 # ==========================================
-# Stage 2: Serve the Static Assets with Nginx (Fail-Safe Port Binding)
+# Stage 2: Serve the Static Assets with Caddy
 # ==========================================
-FROM nginx:stable-alpine
+FROM caddy:2-alpine
 
 # Copy built assets from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/caddy
 
-# Copy our full custom Nginx configuration as a template
-COPY nginx.conf /etc/nginx/nginx.conf.template
-
-# Set default fallback port to 8080
-ENV PORT=8080
+# Copy custom Caddyfile configuration
+COPY Caddyfile /etc/caddy/Caddyfile
 
 # Expose port 8080 for documentation
 EXPOSE 8080
-
-# Replace PORT_PLACEHOLDER with $PORT and run Nginx using writeable configuration in /tmp to ensure compatibility with read-only & non-root hosts
-CMD ["/bin/sh", "-c", "sed \"s/PORT_PLACEHOLDER/${PORT:-8080}/g\" /etc/nginx/nginx.conf.template > /tmp/nginx.conf && exec nginx -c /tmp/nginx.conf"]
