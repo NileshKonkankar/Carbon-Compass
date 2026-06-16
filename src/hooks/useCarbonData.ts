@@ -6,10 +6,17 @@ import {
 } from '../utils/carbonEngine';
 import type { DailyData, ActivityEntry } from '../utils/carbonEngine';
 
+// Key used for persisting tracking logs in browser local storage
 const LOCAL_STORAGE_KEY = 'carbon_compass_data';
 
+/**
+ * Custom React Hook to manage state, calculations, and local storage persistence
+ * for daily activity entries, green challenges, daily budgets, and streaks.
+ */
 export const useCarbonData = () => {
-  // Load data & Seed if empty directly in useState initializer to prevent synchronous setState inside useEffect
+  // --- STATE 1: dailyRecords ---
+  // Load existing records from localStorage or seed initial 7-day demo data if empty.
+  // Using an initializer function prevents redundant parsing/seeding on every render.
   const [dailyRecords, setDailyRecords] = useState<Record<string, DailyData>>(() => {
     const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (stored) {
@@ -20,7 +27,7 @@ export const useCarbonData = () => {
       }
     }
 
-    // Seed default demo data for 7 days
+    // Seed default demo data for the past 7 days to make the application immediately interactive
     const records: Record<string, DailyData> = {};
     const today = new Date();
 
@@ -31,7 +38,7 @@ export const useCarbonData = () => {
       
       const defaultData = generateDefaultDailyData(dateStr);
       
-      // Customize past days to look realistic
+      // Customize past days to simulate realistic usage patterns
       if (i === 7) {
         defaultData.entries = [
           { id: `base_${dateStr}`, optionId: 'electricity_base', category: 'energy', label: 'Grid Electricity (Baseline)', value: 8, unit: 'kWh', co2e: 3.6, timestamp: date.toISOString() },
@@ -75,13 +82,13 @@ export const useCarbonData = () => {
         defaultData.challenges[1].completed = true;
         defaultData.challenges[2].completed = true;
       } else if (i === 1) {
-        // Yesterday
+        // Yesterday's demo entry
         defaultData.entries = [
           { id: `base_${dateStr}`, optionId: 'electricity_base', category: 'energy', label: 'Grid Electricity (Baseline)', value: 8, unit: 'kWh', co2e: 3.6, timestamp: date.toISOString() },
           { id: `food_${dateStr}`, optionId: 'vegetarian', category: 'diet', label: 'Vegetarian Meal', value: 2, unit: 'meal', co2e: 1.2, timestamp: date.toISOString() },
           { id: `trans_${dateStr}`, optionId: 'carpool', category: 'transport', label: 'Carpool / Rideshare', value: 15, unit: 'km', co2e: 1.65, timestamp: date.toISOString() }
         ];
-        defaultData.challenges[4].completed = true; // Eco shower
+        defaultData.challenges[4].completed = true; // Eco shower completed
       }
 
       records[dateStr] = defaultData;
@@ -91,11 +98,15 @@ export const useCarbonData = () => {
     return records;
   });
 
+  // --- STATE 2: selectedDate ---
+  // Tracks which day is currently active in the dashboard date-navigator
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
 
-  // Calculate Streak dynamically derived from dailyRecords using useMemo to avoid setState in effects
+  // --- DERIVED STATE: streak ---
+  // Calculates consecutive daily active streaks.
+  // Recomputed dynamically using useMemo only when dailyRecords changes.
   const streak = useMemo(() => {
-    const dates = Object.keys(dailyRecords).sort((a,b) => new Date(b).getTime() - new Date(a).getTime()); // newest first
+    const dates = Object.keys(dailyRecords).sort((a,b) => new Date(b).getTime() - new Date(a).getTime());
     if (dates.length === 0) {
       return 0;
     }
@@ -103,11 +114,12 @@ export const useCarbonData = () => {
     let currentStreak = 0;
     const todayStr = getLocalDateString();
     
-    // Check if we logged today. If not, streak could start from yesterday
+    // Determine the starting point of streak calculation (today vs yesterday)
     const checkDate = new Date();
     const todayData = dailyRecords[todayStr];
     
-    // If today is empty (no entries and no challenges completed), start check from yesterday
+    // If today has no logged actions (more than baseline electricity) and no completed challenges,
+    // start checking back from yesterday so the streak doesn't immediately drop to 0.
     const hasTodayActivity = todayData && (todayData.entries.length > 1 || todayData.challenges.some(c => c.completed));
     if (!hasTodayActivity) {
       checkDate.setDate(checkDate.getDate() - 1);
@@ -118,32 +130,30 @@ export const useCarbonData = () => {
       const dayData = dailyRecords[dateKey];
       
       if (!dayData) {
-        break; // Streak broken because no data exists for this day
+        break; // Streak broken: no record exists for this day
       }
 
-      // Day carbon total
       const dayTotal = dayData.entries.reduce((sum, entry) => sum + entry.co2e, 0);
       const completedChallenges = dayData.challenges.filter(c => c.completed).length;
 
-      // Criteria: either stay under budget (and have logged) OR completed at least one challenge
+      // Streak condition: either stay under daily budget OR complete at least 1 green challenge
       const hasActivities = dayData.entries.length > 0;
       if (hasActivities && (dayTotal <= dayData.budgetCO2 || completedChallenges > 0)) {
         currentStreak++;
-        checkDate.setDate(checkDate.getDate() - 1); // move back one day
+        checkDate.setDate(checkDate.getDate() - 1); // Move back one calendar day
       } else {
-        break; // streak broken
+        break; // Streak broken: exceeded budget without completing challenges
       }
     }
 
     return currentStreak;
   }, [dailyRecords]);
 
-  // Initialize demo data for 7 days (called on manual resets)
+  // Seeding/Reset helper (typically triggered from manual "Reset Demo Data" action)
   const initializeDefaultData = () => {
     const records: Record<string, DailyData> = {};
     const today = new Date();
 
-    // Seed past 7 days
     for (let i = 7; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
@@ -151,7 +161,6 @@ export const useCarbonData = () => {
       
       const defaultData = generateDefaultDailyData(dateStr);
       
-      // Customize past days to look realistic
       if (i === 7) {
         defaultData.entries = [
           { id: `base_${dateStr}`, optionId: 'electricity_base', category: 'energy', label: 'Grid Electricity (Baseline)', value: 8, unit: 'kWh', co2e: 3.6, timestamp: date.toISOString() },
@@ -164,8 +173,8 @@ export const useCarbonData = () => {
           { id: `food_${dateStr}`, optionId: 'vegan', category: 'diet', label: 'Vegan Meal', value: 2, unit: 'meal', co2e: 0.6, timestamp: date.toISOString() },
           { id: `trans_${dateStr}`, optionId: 'bike_walk', category: 'transport', label: 'Bike or Walk', value: 8, unit: 'km', co2e: 0.0, timestamp: date.toISOString() }
         ];
-        defaultData.challenges[0].completed = true; // Biked to work
-        defaultData.challenges[1].completed = true; // Vegan day
+        defaultData.challenges[0].completed = true;
+        defaultData.challenges[1].completed = true;
       } else if (i === 5) {
         defaultData.entries = [
           { id: `base_${dateStr}`, optionId: 'electricity_base', category: 'energy', label: 'Grid Electricity (Baseline)', value: 8, unit: 'kWh', co2e: 3.6, timestamp: date.toISOString() },
@@ -177,7 +186,7 @@ export const useCarbonData = () => {
           { id: `base_${dateStr}`, optionId: 'electricity_base', category: 'energy', label: 'Grid Electricity (Baseline)', value: 8, unit: 'kWh', co2e: 3.6, timestamp: date.toISOString() },
           { id: `food_${dateStr}`, optionId: 'beef_pork', category: 'diet', label: 'Red Meat Meal', value: 2, unit: 'meal', co2e: 6.4, timestamp: date.toISOString() },
           { id: `trans_${dateStr}`, optionId: 'drive_solo', category: 'transport', label: 'Drive Solo (Gasoline Car)', value: 35, unit: 'km', co2e: 7.7, timestamp: date.toISOString() }
-        ]; // Total is ~17.7 (Exceeded budget!)
+        ];
       } else if (i === 3) {
         defaultData.entries = [
           { id: `base_${dateStr}`, optionId: 'electricity_base', category: 'energy', label: 'Grid Electricity (Baseline)', value: 8, unit: 'kWh', co2e: 3.6, timestamp: date.toISOString() },
@@ -195,13 +204,12 @@ export const useCarbonData = () => {
         defaultData.challenges[1].completed = true;
         defaultData.challenges[2].completed = true;
       } else if (i === 1) {
-        // Yesterday
         defaultData.entries = [
           { id: `base_${dateStr}`, optionId: 'electricity_base', category: 'energy', label: 'Grid Electricity (Baseline)', value: 8, unit: 'kWh', co2e: 3.6, timestamp: date.toISOString() },
           { id: `food_${dateStr}`, optionId: 'vegetarian', category: 'diet', label: 'Vegetarian Meal', value: 2, unit: 'meal', co2e: 1.2, timestamp: date.toISOString() },
           { id: `trans_${dateStr}`, optionId: 'carpool', category: 'transport', label: 'Carpool / Rideshare', value: 15, unit: 'km', co2e: 1.65, timestamp: date.toISOString() }
         ];
-        defaultData.challenges[4].completed = true; // Eco shower
+        defaultData.challenges[4].completed = true;
       }
 
       records[dateStr] = defaultData;
@@ -211,13 +219,13 @@ export const useCarbonData = () => {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(records));
   };
 
-  // Save changes
+  // Helper function to save records state to both memory and localStorage
   const saveRecords = (updatedRecords: Record<string, DailyData>) => {
     setDailyRecords(updatedRecords);
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedRecords));
   };
 
-  // Get current active date's data (or fallback to generated default)
+  // Retrieves data for the selected date; returns initialized default if date is unrecorded
   const getCurrentData = (): DailyData => {
     if (!dailyRecords[selectedDate]) {
       return generateDefaultDailyData(selectedDate);
@@ -225,7 +233,7 @@ export const useCarbonData = () => {
     return dailyRecords[selectedDate];
   };
 
-  // Add Activity Entry
+  // Adds an activity entry logs list for selectedDate
   const addEntry = (optionId: string, value: number, label: string, unit: string, category: 'transport' | 'diet' | 'energy' | 'waste') => {
     const current = dailyRecords[selectedDate] || generateDefaultDailyData(selectedDate);
     const co2e = calculateEmission(optionId, value);
@@ -253,7 +261,7 @@ export const useCarbonData = () => {
     saveRecords(updatedRecords);
   };
 
-  // Delete Activity Entry
+  // Deletes an activity entry logs list for selectedDate
   const deleteEntry = (entryId: string) => {
     const current = dailyRecords[selectedDate];
     if (!current) return;
@@ -270,7 +278,7 @@ export const useCarbonData = () => {
     saveRecords(updatedRecords);
   };
 
-  // Toggle Challenge Completion
+  // Toggles completed status of a challenge, updating streaks and injecting negative offset entries
   const toggleChallenge = (challengeId: string) => {
     const current = dailyRecords[selectedDate] || generateDefaultDailyData(selectedDate);
     
@@ -294,11 +302,11 @@ export const useCarbonData = () => {
       entries: [...current.entries]
     };
 
-    // Calculate specifically the saving addition:
+    // Calculate negative offset savings additions or removal
     const specificCh = current.challenges.find(c => c.id === challengeId);
     if (specificCh) {
       if (!specificCh.completed) {
-        // became completed
+        // Toggle completed: inject negative footprint saving entry
         updatedData.entries = [
           ...updatedData.entries.filter(e => e.id !== `saving_${challengeId}`),
           {
@@ -313,7 +321,7 @@ export const useCarbonData = () => {
           }
         ];
       } else {
-        // became uncompleted
+        // Toggle uncompleted: remove saving offset entry
         updatedData.entries = updatedData.entries.filter(e => e.id !== `saving_${challengeId}`);
       }
     }
@@ -325,7 +333,7 @@ export const useCarbonData = () => {
     saveRecords(updatedRecords);
   };
 
-  // Update daily budget
+  // Modifies budget limits dynamically for selectedDate
   const updateBudget = (newBudget: number) => {
     const current = dailyRecords[selectedDate] || generateDefaultDailyData(selectedDate);
     const updatedData: DailyData = {
@@ -339,7 +347,7 @@ export const useCarbonData = () => {
     saveRecords(updatedRecords);
   };
 
-  // Helper: get past 7 days carbon data for chart
+  // Assembles historical data for the past 7 days to fuel SVG Analytics rendering
   const getWeeklyHistory = () => {
     const history = [];
     const today = new Date();
@@ -351,13 +359,11 @@ export const useCarbonData = () => {
       
       const totalCO2 = dayData.entries.reduce((sum, entry) => sum + entry.co2e, 0);
       
-      // breakdown by category
       const transport = dayData.entries.filter(e => e.category === 'transport').reduce((sum, entry) => sum + entry.co2e, 0);
       const diet = dayData.entries.filter(e => e.category === 'diet').reduce((sum, entry) => sum + entry.co2e, 0);
       const energy = dayData.entries.filter(e => e.category === 'energy').reduce((sum, entry) => sum + entry.co2e, 0);
       const waste = dayData.entries.filter(e => e.category === 'waste').reduce((sum, entry) => sum + entry.co2e, 0);
 
-      // format day name (e.g. Mon, Tue)
       const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
 
       history.push({

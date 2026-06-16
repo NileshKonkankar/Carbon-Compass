@@ -5,7 +5,12 @@ import { AnalyticsView } from './components/AnalyticsView';
 import { Icons } from './components/Icons';
 import { getLocalDateString, getPersonalizedInsights } from './utils/carbonEngine';
 
+/**
+ * Main Application Shell and Dashboard Layout
+ * Assembles state, sidebars, charts, and drawers into the dark glassmorphic grid UI.
+ */
 function App() {
+  // Load local state and CRUD callbacks from custom useCarbonData hook
   const {
     selectedDate,
     setSelectedDate,
@@ -19,55 +24,65 @@ function App() {
     resetData
   } = useCarbonData();
 
+  // Dialog & tab navigation state variables
   const [isLoggerOpen, setIsLoggerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'daily' | 'analytics'>('daily');
 
+  // Compute stats dynamically derived from data
   const currentData = getCurrentData();
   const history = getWeeklyHistory();
   const insights = getPersonalizedInsights(currentData);
 
-  // Carbon math for the day
+  // Carbon mathematics for the active day
   const totalCO2 = currentData.entries.reduce((sum, entry) => sum + entry.co2e, 0);
   const budget = currentData.budgetCO2;
   const rawRatio = totalCO2 / budget;
-  const ratio = Math.min(1, Math.max(0, rawRatio)); // clamp between 0 and 1
+  const ratio = Math.min(1, Math.max(0, rawRatio)); // clamp ratio between 0 and 1
   const percent = Math.round(rawRatio * 100);
 
-  // Radial Ring values
+  // Calculate accumulated carbon offsets from completed challenges today
+  const totalSaved = currentData.entries
+    .filter(entry => entry.co2e < 0)
+    .reduce((sum, entry) => sum + Math.abs(entry.co2e), 0);
+
+  // SVG Radial Ring properties
   const radius = 60;
   const strokeWidth = 10;
   const circumference = 2 * Math.PI * radius;
+  // Compute strokeDashoffset to fill circle clockwise based on consumption percentage
   const strokeDashoffset = circumference - (ratio * circumference);
   
-  // Decide ring color
-  let ringColor = 'hsl(var(--primary))'; // emerald
+  // Decide ring color theme dynamically based on budget status
+  let ringColor = 'hsl(var(--primary))'; // Safe Emerald Green
   if (rawRatio > 1.0) {
-    ringColor = '#ef4444'; // red
+    ringColor = '#ef4444'; // Exceeded limit Red
   } else if (rawRatio > 0.75) {
-    ringColor = '#f59e0b'; // amber
+    ringColor = '#f59e0b'; // Warning Amber
   }
 
-  // Date Navigator Helpers
+  // --- HANDLER: Date Navigation Backwards ---
   const handlePrevDay = () => {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() - 1);
     setSelectedDate(getLocalDateString(d));
   };
 
+  // --- HANDLER: Date Navigation Forwards ---
   const handleNextDay = () => {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() + 1);
-    // Don't allow future date logging to prevent confusion
+    // Don't allow selecting future dates to prevent empty logs confusion
     if (d > new Date()) return;
     setSelectedDate(getLocalDateString(d));
   };
 
+  // Check if navigator points to today
   const isTodaySelected = selectedDate === getLocalDateString();
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      {/* Top Navbar */}
+      {/* Top sticky blurred Glassmorphic Navbar */}
       <header style={{
         background: 'rgba(15, 23, 20, 0.85)',
         backdropFilter: 'blur(12px)',
@@ -84,7 +99,7 @@ function App() {
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          {/* Logo Brand */}
+          {/* Brand Logo & Tagline */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
               width: '40px',
@@ -106,9 +121,9 @@ function App() {
             </div>
           </div>
 
-          {/* Right Header Panel */}
+          {/* Right Header Section (Streak & resets) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Streak Counter */}
+            {/* Gamified Streak Counter Badge */}
             <div style={{
               background: 'rgba(16, 185, 129, 0.1)',
               border: '1px solid rgba(16, 185, 129, 0.2)',
@@ -125,7 +140,7 @@ function App() {
               <span>{streak} Day Streak</span>
             </div>
 
-            {/* Reset mock data */}
+            {/* Reset mock data button */}
             <button 
               type="button"
               onClick={() => {
@@ -153,17 +168,17 @@ function App() {
         </div>
       </header>
 
-      {/* Main Layout Grid */}
+      {/* Main Dashboard Grid */}
       <main style={{ flex: 1, padding: '24px 0' }}>
         <div className="dashboard-grid">
           
-          {/* Left Column - Score Gauge & Daily List */}
+          {/* ================= LEFT COLUMN: GAUGE & ACTIVITY LIST ================= */}
           <section style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
-            {/* Radial Ring Card */}
+            {/* Radial SVG Gauge Card */}
             <div className="glass-panel" style={{ padding: '24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
               
-              {/* Date Navigation */}
+              {/* Date Navigator Controls */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -207,13 +222,14 @@ function App() {
                 </button>
               </div>
 
-              {/* SVG Ring Gauge */}
+              {/* Radial Progress Ring */}
               <div 
                 style={{ position: 'relative', display: 'inline-block', margin: '12px auto' }}
                 role="img" 
                 aria-label={`Daily carbon progress: ${totalCO2.toFixed(1)} kilograms of ${budget.toFixed(1)} kilograms carbon limit spent`}
               >
                 <svg width="150" height="150" aria-hidden="true">
+                  {/* Background Track Circle */}
                   <circle
                     stroke="rgba(255,255,255,0.04)"
                     fill="transparent"
@@ -222,6 +238,7 @@ function App() {
                     cx="75"
                     cy="75"
                   />
+                  {/* Animated Color-shifting Progress Circle */}
                   <circle
                     className="progress-ring-circle"
                     stroke={ringColor}
@@ -236,7 +253,7 @@ function App() {
                   />
                 </svg>
                 
-                {/* Gauge Inner Text */}
+                {/* Text centered inside the gauge ring */}
                 <div style={{
                   position: 'absolute',
                   top: '50%',
@@ -261,6 +278,7 @@ function App() {
                 </div>
               </div>
 
+              {/* Daily Target Budget Configurator */}
               <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <label htmlFor="budget-input" style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>Daily Limit Target:</label>
@@ -282,7 +300,7 @@ function App() {
                     <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>kg</span>
                   </div>
                 </div>
-                {/* Visual nudges for budget targets */}
+                {/* Visual budget size helpers */}
                 {budget > 25 && (
                   <p style={{ fontSize: '0.72rem', color: '#f59e0b', margin: '4px 0 0', textAlign: 'left', lineHeight: '1.2' }}>
                     ⚠️ Setting a limit over 25 kg exceeds typical sustainability recommendations. Try challenging yourself with a lower target!
@@ -293,8 +311,14 @@ function App() {
                     🌿 Excellent! A sub-10 kg limit represents an ambitious, highly sustainable target.
                   </p>
                 )}
+                {/* Accumulated carbon savings offset summary */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed rgba(255,255,255,0.05)' }}>
+                  <span>Carbon Saved Today:</span>
+                  <span style={{ fontWeight: 700, color: 'hsl(var(--color-savings))' }}>{totalSaved > 0 ? `-${totalSaved.toFixed(1)} kg` : '0.0 kg'}</span>
+                </div>
               </div>
 
+              {/* Logger Drawer trigger button */}
               <button 
                 onClick={() => setIsLoggerOpen(true)}
                 style={{ width: '100%', marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
@@ -305,10 +329,10 @@ function App() {
               </button>
             </div>
 
-            {/* Daily Activity Entries List */}
+            {/* Daily Log Entries list panel */}
             <div className="glass-panel" style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'white' }}>Logged Activities</h3>
+                <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'white' }}>Logged Activities</h2>
                 <span style={{
                   fontSize: '0.75rem',
                   background: 'rgba(255,255,255,0.05)',
@@ -320,6 +344,7 @@ function App() {
                 </span>
               </div>
 
+              {/* Empty state when day has no recorded entries */}
               {currentData.entries.length === 0 ? (
                 <div style={{
                   textAlign: 'center',
@@ -338,6 +363,7 @@ function App() {
                   <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>Click "Log New Activity" above to begin tracking.</p>
                 </div>
               ) : (
+                // Scrollable list of logged activities
                 <ul style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '380px', listStyle: 'none', padding: 0, margin: 0 }}>
                   {currentData.entries.map(entry => {
                     const isSaving = entry.co2e < 0;
@@ -359,9 +385,9 @@ function App() {
                           <span className={`category-badge badge-${entry.category}`} style={{ marginBottom: '4px' }}>
                             {entry.category}
                           </span>
-                          <h4 style={{ fontSize: '0.85rem', fontWeight: 500, color: 'white' }}>
+                          <h3 style={{ fontSize: '0.85rem', fontWeight: 500, color: 'white', margin: 0 }}>
                             {entry.label}
-                          </h4>
+                          </h3>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <span style={{ 
@@ -399,10 +425,10 @@ function App() {
 
           </section>
 
-          {/* Right Column - Tabs & Details */}
+          {/* ================= RIGHT COLUMN: TABS & VIEWS ================= */}
           <section style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
-            {/* View Tabs */}
+            {/* Tab selection buttons */}
             <div 
               role="tablist"
               aria-label="Dashboard View Toggle"
@@ -463,7 +489,7 @@ function App() {
               </button>
             </div>
 
-            {/* TAB VIEW 1: DAILY DETAILS */}
+            {/* TAB PANEL 1: DAILY DETAILS */}
             {activeTab === 'daily' && (
               <div 
                 id="daily-focus-panel" 
@@ -471,14 +497,14 @@ function App() {
                 aria-labelledby="tab-daily"
                 style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}
               >
-                {/* Personalized Insights Banner */}
+                {/* Personalized Insights & recommendations banner */}
                 {insights.length > 0 && (
                   <div className="glass-panel" style={{
                     padding: '20px',
                     background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.05))',
                     borderLeft: '4px solid hsl(var(--primary))'
                   }}>
-                    <h3 style={{
+                    <h2 style={{
                       fontSize: '0.95rem',
                       fontWeight: 600,
                       color: 'white',
@@ -489,7 +515,7 @@ function App() {
                     }}>
                       <Icons name="Sparkles" size={16} style={{ color: 'hsl(var(--primary))' }} />
                       Personalized Insights & Nudges
-                    </h3>
+                    </h2>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {insights.map((insight, idx) => (
                         <p key={idx} style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', lineHeight: '1.4' }}>
@@ -500,10 +526,10 @@ function App() {
                   </div>
                 )}
 
-                {/* Challenges & Daily Habits Checklist */}
+                {/* Challenges and Green checklist widgets */}
                 <div className="glass-panel" style={{ padding: '24px' }}>
                   <div style={{ marginBottom: '16px' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'white' }}>Daily Green Challenges</h3>
+                    <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'white' }}>Daily Green Challenges</h2>
                     <p style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.8rem', marginTop: '2px' }}>
                       Complete active tasks to offset your daily carbon output
                     </p>
@@ -526,7 +552,7 @@ function App() {
                           transition: 'all 0.2s ease'
                         }}
                       >
-                        {/* Custom Checkbox */}
+                        {/* Custom checkbox styled button */}
                         <button
                           type="button"
                           onClick={() => toggleChallenge(challenge.id)}
@@ -550,17 +576,18 @@ function App() {
                           {challenge.completed && <Icons name="Check" size={14} strokeWidth={3} />}
                         </button>
 
-                        {/* Title & Desc */}
+                        {/* Title and details summary description */}
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <h4 style={{ 
+                            <h3 style={{ 
                               fontSize: '0.9rem', 
                               fontWeight: 600, 
                               color: challenge.completed ? 'hsl(var(--text-secondary))' : 'white',
-                              textDecoration: challenge.completed ? 'line-through' : 'none'
+                              textDecoration: challenge.completed ? 'line-through' : 'none',
+                              margin: 0
                             }}>
                               {challenge.title}
-                            </h4>
+                            </h3>
                             <span className={`category-badge badge-${challenge.category}`} style={{ fontSize: '0.65rem', padding: '2px 6px' }}>
                               {challenge.category}
                             </span>
@@ -570,7 +597,7 @@ function App() {
                           </p>
                         </div>
 
-                        {/* Sparkles / CO2 saving */}
+                        {/* Estimated daily offsets & consecutive streaks flame counters */}
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                           <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'hsl(var(--color-savings))' }}>
                             -{challenge.co2Saving} kg
@@ -590,7 +617,7 @@ function App() {
               </div>
             )}
 
-            {/* TAB VIEW 2: HISTORICAL ANALYTICS */}
+            {/* TAB PANEL 2: WEEKLY HISTORICAL TRENDS */}
             {activeTab === 'analytics' && (
               <div 
                 id="analytics-panel" 
@@ -607,7 +634,7 @@ function App() {
         </div>
       </main>
 
-      {/* Slide-out Logger Drawer */}
+      {/* Slide-out Logger Drawer component */}
       <QuickLogger 
         isOpen={isLoggerOpen}
         onClose={() => setIsLoggerOpen(false)}

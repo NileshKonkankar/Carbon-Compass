@@ -6,26 +6,39 @@ import { Icons } from './Icons';
 interface QuickLoggerProps {
   isOpen: boolean;
   onClose: () => void;
+  // Callback fired when user commits logging
   onAddEntry: (optionId: string, value: number, label: string, unit: string, category: 'transport' | 'diet' | 'energy' | 'waste') => void;
 }
 
+/**
+ * QuickLogger Component - Slide-out drawer dialog
+ * Handles interactive selection and value configuration of activities.
+ */
 export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAddEntry }) => {
+  // --- STATE ---
+  // Currently active activity sector tab
   const [activeTab, setActiveTab] = useState<'transport' | 'diet' | 'energy' | 'waste'>('transport');
+  
+  // Currently selected specific activity option
   const [selectedOption, setSelectedOption] = useState<ActivityOption | null>(
     ACTIVITY_OPTIONS.find(opt => opt.category === 'transport') || null
   );
+  
+  // Custom configured value multiplier input
   const [inputValue, setInputValue] = useState<number>(15);
 
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  // Focus management: focus close button when modal opens
+  // --- ACCESSIBILITY EFFECT: Focus Management ---
+  // Focuses the close button when the drawer opens to establish proper keyboard focus flow.
   useEffect(() => {
     if (isOpen && closeButtonRef.current) {
       closeButtonRef.current.focus();
     }
   }, [isOpen]);
 
-  // Escape key keyboard listener
+  // --- ACCESSIBILITY EFFECT: Keyboard Dismissal ---
+  // Dismisses drawer dynamically when user presses the Escape key.
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -37,8 +50,10 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Render nothing if drawer is not open
   if (!isOpen) return null;
 
+  // Switches category tabs and prepopulates the first available option and default value
   const handleTabChange = (category: 'transport' | 'diet' | 'energy' | 'waste') => {
     setActiveTab(category);
     const firstOption = ACTIVITY_OPTIONS.find(opt => opt.category === category) || null;
@@ -48,11 +63,13 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
     }
   };
 
+  // Selection handler for activity grid items
   const handleOptionSelect = (option: ActivityOption) => {
     setSelectedOption(option);
     setInputValue(option.defaultValue);
   };
 
+  // Submits the activity logged back to parent state and closes the drawer
   const handleLog = () => {
     if (!selectedOption) return;
     const cleanValue = Number(inputValue);
@@ -63,16 +80,19 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
     onClose();
   };
 
+  // Calculates estimated emissions dynamically based on active config value
   const currentCO2 = selectedOption ? calculateEmission(selectedOption.id, inputValue) : 0;
   const isOffset = currentCO2 < 0;
 
   return (
     <>
+      {/* Backdrop overlay supporting click-away dismiss */}
       <div 
         className="drawer-backdrop" 
         onClick={onClose} 
         aria-hidden="true"
       />
+      {/* Accessible Dialog container */}
       <div 
         className="drawer" 
         role="dialog" 
@@ -81,7 +101,7 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
         style={{ display: 'flex', flexDirection: 'column' }}
       >
         
-        {/* Header */}
+        {/* Header Block */}
         <div style={{
           padding: '24px',
           borderBottom: '1px solid hsl(var(--card-border))',
@@ -114,10 +134,10 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
           </button>
         </div>
 
-        {/* Content Container */}
+        {/* Scrollable Form Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
           
-          {/* Tabs */}
+          {/* Accessible Category Tablist */}
           <div 
             role="tablist" 
             aria-label="Activity Categories"
@@ -156,7 +176,7 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
             ))}
           </div>
 
-          {/* Activity Grid Tabpanel */}
+          {/* Activity Selection Grid Tabpanel */}
           <div 
             id={`logger-panel-${activeTab}`}
             role="tabpanel" 
@@ -223,7 +243,7 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
             })}
           </div>
 
-          {/* Value Configurator */}
+          {/* Configurator Slider & Input Widgets */}
           {selectedOption && (
             <div className="glass-card" style={{ padding: '20px', background: 'rgba(0,0,0,0.15)' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'white', marginBottom: '16px' }}>Configure Value</h3>
@@ -242,7 +262,7 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
                 />
               </div>
 
-              {/* Slider for quick adjustments */}
+              {/* Range slider for rapid adjustment */}
               <input
                 type="range"
                 aria-label={`Adjust amount in ${selectedOption.unit}`}
@@ -258,7 +278,7 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
                 }}
               />
 
-              {/* CO2 Impact Banner */}
+              {/* CO2 Impact Banner summary card */}
               <div style={{
                 background: isOffset ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.03)',
                 border: isOffset ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid rgba(255, 255, 255, 0.05)',
@@ -287,7 +307,7 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({ isOpen, onClose, onAdd
 
         </div>
 
-        {/* Footer */}
+        {/* Footer Buttons */}
         <div style={{
           padding: '20px 24px',
           borderTop: '1px solid hsl(var(--card-border))',

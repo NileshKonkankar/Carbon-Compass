@@ -2,6 +2,7 @@ import React from 'react';
 import { Icons } from './Icons';
 
 interface AnalyticsViewProps {
+  // Array representing the history data for past 7 days
   history: Array<{
     dateStr: string;
     dayName: string;
@@ -14,25 +15,30 @@ interface AnalyticsViewProps {
   }>;
 }
 
+/**
+ * AnalyticsView Component - Renders historical charts
+ * Uses a custom SVG to draw stacked bar charts indicating category emissions.
+ */
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
-  // Find max total to scale the chart dynamically
+  // Find the max emission level in history to scale the SVG chart height dynamically
   const maxEmissions = Math.max(...history.map(d => d.total), ...history.map(d => d.budget), 20);
   const chartHeight = 220;
   
-  // Calculate average daily footprint
+  // Compute overall average footprint
   const totalSum = history.reduce((sum, d) => sum + d.total, 0);
   const averageDaily = history.length > 0 ? (totalSum / history.length).toFixed(1) : '0';
 
-  // Calculate averages by category
+  // Helper: Computes the 7-day average for a specific category key
   const getCatAverage = (key: 'transport' | 'diet' | 'energy' | 'waste') => {
     const sum = history.reduce((acc, d) => acc + d[key], 0);
     return history.length > 0 ? (sum / history.length).toFixed(1) : '0';
   };
 
-  // Convert values to height coordinates in SVG
+  /**
+   * Translates a raw CO2e value into the corresponding Y coordinate on the SVG viewport.
+   * Maps values from 0 to maxEmissions into pixels.
+   */
   const scaleY = (val: number) => {
-    // Keep it positive. Note that offsets (negative values) are calculated as savings. 
-    // We only display positive emissions inside the bars to show output.
     const positiveVal = Math.max(0, val);
     return chartHeight - (positiveVal / maxEmissions) * (chartHeight - 20);
   };
@@ -61,11 +67,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
         </div>
       </div>
 
-      {/* SVG Custom Stacked Bar Chart */}
+      {/* SVG Stacked Bar Chart */}
       <div style={{ position: 'relative', background: 'rgba(0,0,0,0.15)', borderRadius: '12px', padding: '16px 12px 12px' }}>
         <svg viewBox={`0 0 500 ${chartHeight + 30}`} width="100%" height="250px" style={{ overflow: 'visible' }}>
           
-          {/* Y Axis Guide Lines */}
+          {/* Y Axis Grid Lines & Numeric Labels */}
           {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => {
             const val = maxEmissions * pct;
             const y = scaleY(val);
@@ -93,7 +99,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
             );
           })}
 
-          {/* Budget Line */}
+          {/* Budget Limit Guideline */}
           {history.length > 0 && (
             <g>
               <line 
@@ -117,24 +123,25 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
             </g>
           )}
 
-          {/* Bars */}
+          {/* Daily Stacked Bars */}
           {history.map((day, idx) => {
-            // Stack calculations
             const width = 24;
+            // Distribute bars evenly across the SVG canvas width
             const gap = (450 - width * history.length) / (history.length + 1);
             const x = 50 + idx * (width + gap);
 
-            // Stack heights. Draw categories from bottom to top: transport, diet, energy, waste
+            // Stack heights scaled to pixels
             const tHeight = (Math.max(0, day.transport) / maxEmissions) * (chartHeight - 20);
             const dHeight = (Math.max(0, day.diet) / maxEmissions) * (chartHeight - 20);
             const eHeight = (Math.max(0, day.energy) / maxEmissions) * (chartHeight - 20);
             const wHeight = (Math.max(0, day.waste) / maxEmissions) * (chartHeight - 20);
 
+            // Accumulates stack Y position, starting at chart bottom and moving up
             let currentY = chartHeight;
 
             return (
               <g key={day.dateStr} className="chart-bar-group">
-                {/* Tooltip trigger overlay */}
+                {/* Tooltip trigger overlay region */}
                 <rect 
                   x={x - 4} 
                   y="10" 
@@ -144,7 +151,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
                   style={{ cursor: 'pointer' }}
                 />
 
-                {/* Transport Bar */}
+                {/* 1. Transport Segment (Base of stack) */}
                 {tHeight > 0 && (
                   <rect
                     x={x}
@@ -156,7 +163,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
                   />
                 )}
 
-                {/* Diet Bar */}
+                {/* 2. Diet Segment */}
                 {dHeight > 0 && (
                   <rect
                     x={x}
@@ -168,7 +175,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
                   />
                 )}
 
-                {/* Energy Bar */}
+                {/* 3. Energy Segment */}
                 {eHeight > 0 && (
                   <rect
                     x={x}
@@ -180,7 +187,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
                   />
                 )}
 
-                {/* Waste Bar */}
+                {/* 4. Waste Segment (Top of stack) */}
                 {wHeight > 0 && (
                   <rect
                     x={x}
@@ -192,7 +199,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
                   />
                 )}
 
-                {/* Daily Total label on top of bar */}
+                {/* Total daily sum label on top of stacked bar */}
                 <text
                   x={x + width / 2}
                   y={currentY - 6}
@@ -204,7 +211,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
                   {day.total.toFixed(0)}
                 </text>
 
-                {/* Day Labels at bottom */}
+                {/* Weekday label underneath the bar */}
                 <text
                   x={x + width / 2}
                   y={chartHeight + 18}
@@ -221,7 +228,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
         </svg>
       </div>
 
-      {/* Chart Legend */}
+      {/* Interactive Chart Legend */}
       <div style={{
         display: 'flex',
         justifyContent: 'center',
@@ -249,7 +256,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ history }) => {
         </div>
       </div>
 
-      {/* Category Breakdown grid */}
+      {/* Grid displaying the calculated weekly category averages */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
